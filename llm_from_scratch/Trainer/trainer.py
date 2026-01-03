@@ -77,13 +77,13 @@ def evaluate_model(model, train_loader, val_loader, device, eval_iter):
 def generate_and_print_sample(model, tokenizer, device, start_context):
     model.eval()
     
-    # 🔍 SYSTEM 2 FIX: Access the underlying model if wrapped in DataParallel
-    model_to_query = model.module if hasattr(model, "module") else model
+    # 🔍 Check if the model is wrapped in DataParallel
+    # If it is, we must access .module to get to the 'pos_emb' attribute
+    model_base = model.module if hasattr(model, 'module') else model
     
-    # Now this attribute access will work correctly
-    context_size = model_to_query.pos_emb.weight.shape[0]
+    # Now this call will succeed regardless of single or dual GPU setup
+    context_size = model_base.pos_emb.weight.shape[0]
     
-    # Added allowed_special to handle <|endoftext|> in high-quality corpora
     encoded = tokenizer.encode(start_context, allowed_special={"<|endoftext|>"})
     encoded_tensor = torch.tensor(encoded).unsqueeze(0).to(device)
     
