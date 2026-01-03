@@ -3,6 +3,7 @@ import torch.nn as nn
 
 import sys
 from pathlib import Path
+from torch.utils.checkpoint import checkpoint
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from llm_from_scratch.TransformerBlock.transformer_block import TransformerBlock
@@ -18,10 +19,12 @@ class GPTModel(nn.Module):
         
         # 2. The Stack of Transformer Blocks
         # This creates 'n_layers' (e.g., 12) identical blocks in a sequence
-        self.trf_blocks = nn.Sequential(
-            *[TransformerBlock(cfg) for _ in range(cfg["n_layers"])]
+        # 1. CHANGE: Use nn.ModuleList instead of nn.Sequential
+        # ModuleList allows us to iterate and apply logic to each block individually
+        self.trf_blocks = nn.ModuleList(
+            [TransformerBlock(cfg) for _ in range(cfg["n_layers"])]
         )
-        
+        self.gradient_checkpointing = cfg.get("gradient_checkpointing", False)        
         # 3. Final Stabilization
         self.final_norm = LayerNorm(cfg["emb_dim"])
         
@@ -41,7 +44,15 @@ class GPTModel(nn.Module):
         x = self.drop_emb(x)
         
         # Step 2: Pass through all 12 Transformer Blocks
-        x = self.trf_blocks(x)
+        # x = self.trf_blocks(x)
+        # 3. CHANGE: Manual loop through blocks with Checkpointing logic
+        for block in self.trf_blocks:
+            if self.gradient_checkpointing and self.training:
+                # This 'forgets' the activations and recomputes them during backward()
+                # 'use_reentrant=False' is the safer, modern default
+                x = checkpoint(block, x, use_reentrant=False)
+            else:
+                x = block(x)
         
         # Step 3: Final Norm and Output
         x = self.final_norm(x)
