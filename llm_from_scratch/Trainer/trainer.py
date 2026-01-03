@@ -1,6 +1,6 @@
 import torch
 from torch.cuda.amp import GradScaler, autocast
-
+from torch.optim.lr_scheduler import CosineAnnealingLR
 
 def generate_text_simple(model, idx, max_new_tokens, context_size, temperature=1.0, top_k=None):
     # Ensure we are in evaluation mode
@@ -98,7 +98,7 @@ def generate_and_print_sample(model, tokenizer, device, start_context):
 
 def train_model_simple(model, train_loader, val_loader, optimizer, device, num_epochs,
                        eval_freq, eval_iter, start_context, tokenizer, 
-                       memory_efficient=True, accumulation_steps=16):
+                       memory_efficient=True, accumulation_steps=16, scheduler: CosineAnnealingLR=None):
     
     train_losses, val_losses, track_tokens_seen = [], [], []
     tokens_seen, global_step = 0, -1
@@ -127,6 +127,8 @@ def train_model_simple(model, train_loader, val_loader, optimizer, device, num_e
             if (batch_idx + 1) % accumulation_steps == 0:
                 scaler.step(optimizer)
                 scaler.update()
+                if scheduler is not None:
+                    scheduler.step()
                 optimizer.zero_grad()
 
             # --- LOGGING & EVALUATION ---
