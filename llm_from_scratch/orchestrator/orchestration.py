@@ -117,17 +117,17 @@ print(f"Input text: {start_context}")
 print(f"Output:     {tokenizer.decode(out.squeeze(0).tolist())}")
 model.train() # Switch back to training mode
 
-# # 7. START TRAINING
-# print("\n--- Starting Training Loop ---")
-# train_losses, val_losses, tokens_seen = train_model_simple(
-#     model=model,
-#     train_loader=train_loader,
-#     val_loader=val_loader,
-#     optimizer=optimizer,
-#     device=device,
-#     num_epochs=10,
-#     eval_freq=5,
-#     eval_iter=1,
-#     start_context=start_context,
-#     tokenizer=tokenizer
-# )
+# 7. START TRAINING
+print("\n--- Starting Training Loop ---")
+train_losses, val_losses, tokens_seen = train_model_simple(
+    model=model,
+    train_loader=train_loader,
+    val_loader=val_loader,
+    optimizer=optimizer,
+    device=device,
+    num_epochs=10,
+    eval_freq=5,
+    eval_iter=1,
+    start_context=start_context,
+    tokenizer=tokenizer
+)
