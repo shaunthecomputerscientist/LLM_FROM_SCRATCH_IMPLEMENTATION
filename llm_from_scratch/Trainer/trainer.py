@@ -1,11 +1,20 @@
 import torch
 from torch.cuda.amp import GradScaler, autocast
-# 4. GENERATION UTILITY     
+
+
 def generate_text_simple(model, idx, max_new_tokens, context_size, temperature=1.0, top_k=None):
+    # Ensure we are in evaluation mode
+    model.eval() 
+    
     for _ in range(max_new_tokens):
+        # Crop context to the model's max supported length
         idx_cond = idx[:, -context_size:]
+        
         with torch.no_grad():
-            logits = model(idx_cond)
+            # DataParallel automatically scatters 'idx_cond' across GPUs
+            logits = model(idx_cond) 
+            
+        # Focus on the last token's output
         logits = logits[:, -1, :]
 
         # 1. Apply Top-K filtering
@@ -67,7 +76,12 @@ def evaluate_model(model, train_loader, val_loader, device, eval_iter):
 # UPDATED: Added allowed_special to prevent Tiktoken errors
 def generate_and_print_sample(model, tokenizer, device, start_context):
     model.eval()
-    context_size = model.pos_emb.weight.shape[0]
+    
+    # 🔍 SYSTEM 2 FIX: Access the underlying model if wrapped in DataParallel
+    model_to_query = model.module if hasattr(model, "module") else model
+    
+    # Now this attribute access will work correctly
+    context_size = model_to_query.pos_emb.weight.shape[0]
     
     # Added allowed_special to handle <|endoftext|> in high-quality corpora
     encoded = tokenizer.encode(start_context, allowed_special={"<|endoftext|>"})
